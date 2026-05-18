@@ -4,6 +4,15 @@ Joint spike localization and motion drift correction for Neuropixels recordings,
 solved via alternating optimization between a learned localization network
 (CNN or Transformer) and the DREDge drift estimator.
 
+![Aggregate-projection comparison: MP raw → MP+DREDge → CNN-SLN all-spike ep20](figures/comparison/aggregate_3method_comparison.png)
+
+*Aggregate spike projections (x-y, x-z, z-y) under three pipelines on
+dataset1_p1, ~2.48 M spikes. Top: MP raw (no motion correction, ρ̄ = 0.267).
+Middle: MP+DREDge canonical (standard pipeline baseline, ρ̄ = 0.568). Bottom:
+the CNN-SLN all-spike post-DREDge ep20 result (this work, ρ̄ = 0.663,
++0.095 over the canonical baseline). The bottom row shows cleaner depth
+bands than the middle one — motion-driven smearing is reduced.*
+
 ## TL;DR
 
 Neuropixels recordings contain two confounded problems: (1) localizing each
