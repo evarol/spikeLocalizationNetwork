@@ -1,0 +1,14 @@
+# Core ML
+torch>=2.1
+numpy>=1.24
+tqdm>=4.60
+
+# Spike sorting + DREDge motion estimation
+spikeinterface>=0.103
+
+# Visualization
+matplotlib>=3.7
+
+# Optional: ffmpeg for movie rendering (system install, not pip)
+# brew install ffmpeg          # macOS
+# apt install ffmpeg            # Debian/Ubuntu

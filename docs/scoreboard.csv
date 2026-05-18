@@ -1,0 +1,10 @@
+method,apply_rho_bar,apply_H_bar,delta_rho_vs_mp_dredge,rho_x_global,rho_x_local,rho_y_global,rho_y_local,rho_z,notes
+MP_raw_no_MC,0.267,6.27,-0.301,1.0,1.0,1.0,1.0,1.0,baseline raw MP localizations no motion correction
+MP_DREDge_canonical,0.568,8.25,0.0,1.0,1.0,1.0,1.0,1.0,canonical baseline (SI dredge preset)
+CNN_500K_postd_ep20,0.528,8.06,-0.040,-0.003,-0.050,0.9997,0.470,0.096,500K training subset bad x/z generalization
+CNN_all_spike_postd_ep10,0.649,8.16,+0.081,0.926,0.922,0.9999,0.896,0.608,training killed at ep10 of 20
+CNN_all_spike_postd_ep20,0.663,8.14,+0.095,0.924,0.920,0.9999,0.893,0.573,extension to ep20 with lr=1e-5 grad_clip=1.0
+CNN_all_spike_ep20_DREDge2,0.641,8.14,+0.073,0.924,0.920,0.9999,0.908,0.573,second DREDge round on ep20 (DREDge2 less self-consistent)
+TR_500K_postd_ep5,0.571,8.21,+0.003,0.067,0.026,0.9996,0.356,0.132,500K bad generalization same as CNN_500K
+TR_all_spike_postd_ep1,0.633,8.20,+0.066,0.943,0.939,0.9999,0.922,0.875,training rate-limited by MPS allocator 16hr/ep
+TR_all_spike_postd_v3_ep2,0.641,8.19,+0.073,0.942,0.939,0.9999,0.922,0.877,2 epochs of post-DREDge SLN training
