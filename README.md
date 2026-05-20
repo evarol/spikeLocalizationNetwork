@@ -67,12 +67,14 @@ spikeLocalizationNetwork/
 │   ├── make_mp_comparison_scatter.py   global + local scatter vs MP+DREDge
 │   ├── make_dredge_motion_comparison.py 3 DREDge motion-field comparison
 │   ├── make_convergence_trace.py       per-iteration training loss curve
+│   ├── make_interactive_localization_html.py  interactive-visualizer (self-contained HTML)
 │   └── run_dredge2_cnn_all_ep20.py     example: second-round DREDge runner
 │
 ├── figures/
 │   ├── per_method/   final viz package per method (depth raster, ncc, entropy,
 │   │                 aggregate projections, alpha, figT1, figT5, …)
-│   └── comparison/   cross-method scatter + motion-field comparisons
+│   ├── comparison/   cross-method scatter + motion-field comparisons
+│   └── interactive_visualizer.png   screenshot of the interactive-visualizer
 │
 └── docs/
     ├── PROBLEM_STATEMENT.md   the joint-localization-and-drift problem
@@ -161,6 +163,41 @@ Key empirical findings:
    yields a motion field 99.7% correlated (1.18 μm RMS) with DREDge1. Re-applying
    it to the same predictions slightly reduces ρ̄ (0.663 → 0.641) because
    the SLN training tuned residuals to be cancelled by DREDge1 *specifically*.
+
+## Interactive visualizer
+
+![interactive-visualizer](figures/interactive_visualizer.png)
+
+`src/make_interactive_localization_html.py` builds a **self-contained, clickable
+HTML explorer** of a trained model's localizations (shown above for the
+CNN all-spike 2D-loss ep20 model). Layout:
+
+- **6 pairwise scatter panels** (top-left) of the per-spike local coordinates
+  `(l_x, l_y, l_z)` + α, colored by log₁₀α on the canonical Inferno scale.
+- **3 global aggregate panels** (bottom) — x-y / x-z / z-y in the exact
+  `aggregate_projections` L-layout, with white channel-square markers.
+- A dense background shows the full distribution; **1000 spikes are silently
+  interactive**. Clicking any of the 9 panels snaps (pixel-accurate) to the
+  nearest interactive spike and renders, on the right:
+  - its **10-channel waveforms** at probe locations — raw (blue) + tPCA-denoised (red),
+    with the channel-neighborhood anchor (○) and the SLN-estimated (x, y) (★);
+  - a rotatable **3-D local frame** `(l_x, l_y, l_z)` with the channels at z=0,
+    the anchor at the origin, and the SLN estimate ◆ colored by log₁₀α.
+
+It is method-agnostic: point `--gl_pre` / `--global_dir` at any apply output and
+set `--label`. A 4-output (CNN4D) model colors by *predicted* log₁₀α; a 3-output
+model falls back to the MP monopolar log₁₀α. Plotly is loaded from a CDN; pass
+`--svg` (with a small `--n_bg`) for an SVG render that avoids the browser's
+WebGL-context limit (used to produce the screenshot above).
+
+```bash
+python3 src/make_interactive_localization_html.py \
+    --gl_pre  <apply_dir>/GL_pre_dredge.npy \
+    --global_dir <apply_dir> \
+    --label "CNN all-spike 2D-loss ep20" \
+    --out figures/interactive_localization_cnn_all_2d_ep20.html
+# then open the HTML in any browser
+```
 
 ## How to use this code
 

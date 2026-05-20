@@ -9,6 +9,8 @@ spikeinterface>=0.103
 # Visualization
 matplotlib>=3.7
 pillow>=10.0          # for make_aggregate_3method_comparison.py (PNG stitching)
+scikit-learn>=1.2     # tPCA denoiser for the interactive-visualizer waveform overlay
+# Plotly is loaded from CDN by the interactive-visualizer HTML (no pip install needed)
 
 # Optional: ffmpeg for movie rendering (system install, not pip)
 # brew install ffmpeg          # macOS
