@@ -179,10 +179,15 @@ CNN all-spike 2D-loss ep20 model). Layout:
 - A dense background shows the full distribution; **1000 spikes are silently
   interactive**. Clicking any of the 9 panels snaps (pixel-accurate) to the
   nearest interactive spike and renders, on the right:
-  - its **10-channel waveforms** at probe locations — raw (blue) + tPCA-denoised (red),
-    with the channel-neighborhood anchor (○) and the SLN-estimated (x, y) (★);
-  - a rotatable **3-D local frame** `(l_x, l_y, l_z)` with the channels at z=0,
-    the anchor at the origin, and the SLN estimate ◆ colored by log₁₀α.
+  - its **10-channel waveforms** at probe locations — raw (blue) + tPCA-denoised (red) —
+    overlaid with **four localizers** for side-by-side comparison: the SLN estimate
+    (★ pink), the monopolar **MP** fit (✚ cyan), the **max-amplitude** / peak-channel
+    estimate (☐ green), and the amplitude-weighted **center-of-mass** (✕ orange),
+    plus the channel-neighborhood anchor (○);
+  - a rotatable **3-D local frame** `(l_x, l_y, l_z)` with the raw + tPCA waveforms
+    **laid flat in the z=0 probe plane** at their channel positions, the anchor at
+    the origin, and all four localizers in 3-D — SLN ◆ (α-colored) and MP ✚ at their
+    estimated depth (with droplines), max-amp ☐ and CoM ✕ pinned to z=0.
 
 It is method-agnostic: point `--gl_pre` / `--global_dir` at any apply output and
 set `--label`. A 4-output (CNN4D) model colors by *predicted* log₁₀α; a 3-output

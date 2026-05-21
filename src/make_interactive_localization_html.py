@@ -80,6 +80,10 @@ def main() -> None:
     p.add_argument("--alpha_mp", default="results/spike_locs_alpha.npy", type=Path,
                    help="MP monopolar α — used as the color/4th dimension when the model "
                         "doesn't predict α (3-output ckpts, e.g. the 2D-loss CNN).")
+    p.add_argument("--mp_xyz_dir", default="results/tpca_monopolar_full", type=Path,
+                   help="dir with monopolar spike_locs_{x,y,z}.npy — drawn as the MP "
+                        "reference localization on the per-spike panels. Optional: skipped "
+                        "if the files are missing.")
     p.add_argument("--label", default="CNN4D outer-loop final",
                    help="title label for the visualizer (the method being shown).")
     p.add_argument("--svg", action="store_true",
@@ -115,6 +119,18 @@ def main() -> None:
     g_y = np.load(args.global_dir / "y.npy").astype(np.float32)
     g_z = np.load(args.global_dir / "z.npy").astype(np.float32)
     assert len(g_x) == N, f"global x length {len(g_x)} != N={N}"
+
+    # MP monopolar reference localization (no-motion, like GL_pre) — drawn on the
+    # per-spike panels alongside the model. Optional: skip if files are missing.
+    mp_files = {a: args.mp_xyz_dir / f"spike_locs_{a}.npy" for a in "xyz"}
+    have_mp = all(p.exists() for p in mp_files.values())
+    if have_mp:
+        mp_x = np.load(mp_files["x"]).astype(np.float32)
+        mp_y = np.load(mp_files["y"]).astype(np.float32)
+        mp_z = np.load(mp_files["z"]).astype(np.float32)
+        print(f"  MP reference: {args.mp_xyz_dir}/spike_locs_xyz.npy")
+    else:
+        print(f"  MP reference: NOT FOUND in {args.mp_xyz_dir} — MP marker omitted")
     print(f"N={N:,}  l_x∈[{l_x.min():.0f},{l_x.max():.0f}]  l_z∈[{l_z.min():.0f},{l_z.max():.0f}]  "
           f"log α∈[{l_a.min():.2f},{l_a.max():.2f}]  ·  global y∈[{g_y.min():.0f},{g_y.max():.0f}]")
 
@@ -149,14 +165,27 @@ def main() -> None:
         anchor = anchor_lookup[peak_ch]                          # (x, y, 0)
         Wr = W_int[s]                                            # (10, 90) raw
         Wd = tpca.inverse_transform(tpca.transform(Wr)).astype(np.float32)
+        ax_, ay_ = float(anchor[0]), float(anchor[1])
+        # amplitude-based localizers from the denoised peak-to-peak (MP's basis):
+        #   max-amp = peak channel position;  CoM = amplitude-weighted centroid.
+        # Both have z=0; stored as local offsets from the anchor.
+        ptp = (Wd.max(1) - Wd.min(1)).astype(np.float64)         # (10,)
+        kmax = int(np.argmax(ptp))
+        psum = float(ptp.sum()) + 1e-9
+        ma_l = [round(float(ch_xy[kmax, 0]) - ax_, 2), round(float(ch_xy[kmax, 1]) - ay_, 2)]
+        com_l = [round(float((ptp * ch_xy[:, 0]).sum() / psum) - ax_, 2),
+                 round(float((ptp * ch_xy[:, 1]).sum() / psum) - ay_, 2)]
+        mp_l = ([round(float(mp_x[gid]) - ax_, 2), round(float(mp_y[gid]) - ay_, 2),
+                 round(float(mp_z[gid]), 2)] if have_mp else None)
         spikes.append({
             "id": int(gid), "peak_ch": peak_ch,
             "lx": round(float(l_x[gid]), 2), "ly": round(float(l_y[gid]), 2),
             "lz": round(float(l_z[gid]), 2), "la": round(float(l_a[gid]), 3),
-            "ax": round(float(anchor[0]), 2), "ay": round(float(anchor[1]), 2),
+            "ax": round(ax_, 2), "ay": round(ay_, 2),
             "cx": r2(ch_xy[:, 0], 1), "cy": r2(ch_xy[:, 1], 1),
             "wr": [r2(Wr[k], 2) for k in range(10)],
             "wd": [r2(Wd[k], 2) for k in range(10)],
+            "ma": ma_l, "com": com_l, "mp": mp_l,
         })
 
     interactive = {
@@ -343,10 +372,19 @@ function showSpike(i){
     traces.push({x:xs, y:sp.wd[k].map(v=>sp.cy[k]+v*amp), mode:"lines",
       line:{color:"#ff4d4d", width:1.1}, hoverinfo:"skip", showlegend:(k===0), name:"tPCA denoised"});
   }
-  // anchor + SLN (x,y)
+  // anchor + localizers: SLN (★ pink), MP (+ cyan), max-amp (□ green), CoM (× orange)
   traces.push({x:[sp.ax], y:[sp.ay], mode:"markers",
     marker:{symbol:"circle-open", size:13, color:"#ffd23f", line:{width:2}},
     name:"anchor", hoverinfo:"skip"});
+  if(sp.mp) traces.push({x:[sp.ax+sp.mp[0]], y:[sp.ay+sp.mp[1]], mode:"markers",
+    marker:{symbol:"cross", size:11, color:"#39d0ff", line:{color:"#fff",width:0.5}},
+    name:"MP", hoverinfo:"skip"});
+  traces.push({x:[sp.ax+sp.ma[0]], y:[sp.ay+sp.ma[1]], mode:"markers",
+    marker:{symbol:"square-open", size:14, color:"#66ff99", line:{width:2}},
+    name:"max-amp", hoverinfo:"skip"});
+  traces.push({x:[sp.ax+sp.com[0]], y:[sp.ay+sp.com[1]], mode:"markers",
+    marker:{symbol:"x", size:11, color:"#ffa64d", line:{color:"#fff",width:0.5}},
+    name:"CoM", hoverinfo:"skip"});
   traces.push({x:[sp.ax+sp.lx], y:[sp.ay+sp.ly], mode:"markers",
     marker:{symbol:"star", size:16, color:"#ff66dd", line:{color:"#fff",width:0.6}},
     name:"SLN (x,y)", hoverinfo:"skip"});
@@ -359,17 +397,37 @@ function showSpike(i){
   }, {displayModeBar:false});
   // ---- 3D panel ----
   const cxl=sp.cx.map((v,k)=>v-sp.ax), cyl=sp.cy.map((v,k)=>v-sp.ay), czl=sp.cx.map(_=>0);
+  const z0=tnorm.map(_=>0);
   const t3=[
     {type:"scatter3d", x:cxl, y:cyl, z:czl, mode:"markers",
-     marker:{size:3, color:"#888"}, name:"channels (z=0)", hoverinfo:"skip"},
-    {type:"scatter3d", x:[0], y:[0], z:[0], mode:"markers",
-     marker:{symbol:"circle-open", size:6, color:"#ffd23f", line:{width:2}}, name:"anchor", hoverinfo:"skip"},
-    {type:"scatter3d", x:[sp.lx], y:[sp.ly], z:[sp.lz], mode:"markers",
-     marker:{symbol:"diamond", size:7, color:[sp.la], colorscale:"Inferno", cmin:AVMIN, cmax:AVMAX,
-             line:{color:"#fff",width:0.5}}, name:"SLN (l_x,l_y,l_z)", hoverinfo:"skip"},
-    {type:"scatter3d", x:[sp.lx,sp.lx], y:[sp.ly,sp.ly], z:[0,sp.lz], mode:"lines",
-     line:{color:"#ff66dd", width:3, dash:"dash"}, hoverinfo:"skip", showlegend:false},
+     marker:{size:2.5, color:"#888"}, name:"channels (z=0)", hoverinfo:"skip"},
   ];
+  // waveforms lying flat in the z=0 probe plane (time→x, amplitude→y), like the 2D panel
+  for(let k=0;k<10;k++){
+    const xs=tnorm.map(t=>cxl[k]+t);
+    t3.push({type:"scatter3d", x:xs, y:sp.wr[k].map(v=>cyl[k]+v*amp), z:z0, mode:"lines",
+      line:{color:"#7fbfff", width:2}, hoverinfo:"skip", showlegend:(k===0), name:"raw (z=0)"});
+    t3.push({type:"scatter3d", x:xs, y:sp.wd[k].map(v=>cyl[k]+v*amp), z:z0, mode:"lines",
+      line:{color:"#ff4d4d", width:2}, hoverinfo:"skip", showlegend:(k===0), name:"tPCA (z=0)"});
+  }
+  // anchor + localizers
+  t3.push({type:"scatter3d", x:[0], y:[0], z:[0], mode:"markers",
+    marker:{symbol:"circle-open", size:6, color:"#ffd23f", line:{width:2}}, name:"anchor", hoverinfo:"skip"});
+  if(sp.mp){
+    t3.push({type:"scatter3d", x:[sp.mp[0]], y:[sp.mp[1]], z:[sp.mp[2]], mode:"markers",
+      marker:{symbol:"cross", size:6, color:"#39d0ff", line:{color:"#fff",width:0.5}}, name:"MP (l_x,l_y,l_z)", hoverinfo:"skip"});
+    t3.push({type:"scatter3d", x:[sp.mp[0],sp.mp[0]], y:[sp.mp[1],sp.mp[1]], z:[0,sp.mp[2]], mode:"lines",
+      line:{color:"#39d0ff", width:2, dash:"dot"}, hoverinfo:"skip", showlegend:false});
+  }
+  t3.push({type:"scatter3d", x:[sp.ma[0]], y:[sp.ma[1]], z:[0], mode:"markers",
+    marker:{symbol:"square-open", size:7, color:"#66ff99", line:{width:2}}, name:"max-amp (z=0)", hoverinfo:"skip"});
+  t3.push({type:"scatter3d", x:[sp.com[0]], y:[sp.com[1]], z:[0], mode:"markers",
+    marker:{symbol:"x", size:6, color:"#ffa64d", line:{color:"#fff",width:0.5}}, name:"CoM (z=0)", hoverinfo:"skip"});
+  t3.push({type:"scatter3d", x:[sp.lx], y:[sp.ly], z:[sp.lz], mode:"markers",
+    marker:{symbol:"diamond", size:7, color:[sp.la], colorscale:"Inferno", cmin:AVMIN, cmax:AVMAX,
+            line:{color:"#fff",width:0.5}}, name:"SLN (l_x,l_y,l_z)", hoverinfo:"skip"});
+  t3.push({type:"scatter3d", x:[sp.lx,sp.lx], y:[sp.ly,sp.ly], z:[0,sp.lz], mode:"lines",
+    line:{color:"#ff66dd", width:3, dash:"dash"}, hoverinfo:"skip", showlegend:false});
   Plotly.react("panel3d", t3, {
     margin:{l:0,r:0,t:24,b:0}, paper_bgcolor:"#0d0d0d",
     font:{color:"#bbb", size:9}, title:{text:"3-D local frame · ◆ colored by log₁₀α", font:{size:11}},
