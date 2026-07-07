@@ -6,6 +6,10 @@ tqdm>=4.60
 # Spike sorting + DREDge motion estimation
 spikeinterface>=0.103
 
+# MEDICINE drift correction (alternative to DREDge; run_medicine_correction.py)
+medicine-neuro>=1.6   # NOTE: needs Python >=3.10, or add `from __future__ import
+                      # annotations` to medicine/run.py for 3.9 (single `str | None` annotation)
+
 # Visualization
 matplotlib>=3.7
 pillow>=10.0          # for make_aggregate_3method_comparison.py (PNG stitching)
